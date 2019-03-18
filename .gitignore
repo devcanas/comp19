@@ -1,0 +1,8 @@
+*.o
+diy
+lex.yy.c
+lib/libutil.a
+y.output
+y.tab.c
+y.tab.h
+yyselect.c
