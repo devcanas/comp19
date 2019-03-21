@@ -7,22 +7,39 @@ int octal(char *s);
 double real(char *s);
 int yyerror(char *s);
 %}
-%x X_COMMENT X_STRING
+%x X_COMMENT X_STRING X_DELIMITER
 
 IDENTIFIER [A-Za-z_][A-Za-z0-9_]*
 
-INTEGER [1-9][0-9]*                 yylval.i = decimal(yytext); return tINTEGER;
-OCTAL 0[0-9]*                     yylval.i = octal(yytext); return tOCTAL;
-NUMBER [0-9]*\.[0-9]+              yylval.d = real(yytext); return tNUMBER;
+INTEGER [1-9][0-9]*
+OCTAL 0[0-9]*
+NUMBER [0-9]*\.[0-9]+
+STRING \"
+
+IS_LAST_IN_LINE [ ]*$
 
 NUMERIC {INTEGER}|{OCTAL}|{NUMBER}
 
 %%
 
+<X_DELIMITER>\n    yy_pop_state(); return ';';
+
 ==.*                ;                   /* Comments handling */
 =>				    yy_push_state(X_COMMENT);
 <X_COMMENT>=<       yy_pop_state();
 <X_COMMENT>.|\n     ;
+
+<X_STRING>\"{IS_LAST_IN_LINE}   yy_pop_state(); yy_push_state(X_DELIMITER); return tSTRING;
+<X_STRING>\"			        yy_pop_state(); return tSTRING;
+<X_STRING>"*n"		            strcat(yylval.s, "\n");
+<X_STRING>"*r"		            strcat(yylval.s, "\r");
+<X_STRING>"*t"		            strcat(yylval.s, "\t");
+<X_STRING>"*0"		            strcat(yylval.s, "\0");
+<X_STRING>"*("		            strcat(yylval.s, "{");
+<X_STRING>"*)"		            strcat(yylval.s, "}");
+<X_STRING>\*[*'"]               strcat(yylval.s, yytext+1);
+<X_STRING>\*.		            yyerror("invalid escape sequence in string");
+<X_STRING>.|\n                  strcat(yylval.s, yytext);
 
 :=              return tASSIGN;     /* Assignement operator */
 
@@ -33,14 +50,16 @@ NUMERIC {INTEGER}|{OCTAL}|{NUMBER}
 
 "++"            return tINCR;
 "--"            return tDECR;
-!               return tDIY;
 
 public          return tPUBLIC;     /* DIY Reserved words */
 const           return tCONST;
 void            return tVOID;
 entry           return tENTRY;
-
-if              return tIF;         /* Control flow */
+integer         return tINTEGER_TYPE;
+number          return tNUMBER_TYPE;
+octal           return tOCTAL_TYPE;
+string          return tSTRING_TYPE;
+if              return tIF;
 then            return tTHEN;
 else            return tELSE;
 do              return tDO;
@@ -53,29 +72,22 @@ step            return tSTEP;
 break           return tBREAK;
 continue        return tCONTINUE;
 
+{IDENTIFIER}{IS_LAST_IN_LINE}       yy_push_state(X_DELIMITER); yylval.s = strdup(yytext); return tIDENTIFIER;
+{OCTAL}{IS_LAST_IN_LINE}            yy_push_state(X_DELIMITER); yylval.i = octal(yytext); return tOCTAL;
+{INTEGER}{IS_LAST_IN_LINE}          yy_push_state(X_DELIMITER); yylval.i = decimal(yytext); return tINTEGER;
+{NUMBER}{IS_LAST_IN_LINE}           yy_push_state(X_DELIMITER); yylval.d = real(yytext); return tNUMBER;
+[)!]{IS_LAST_IN_LINE}               yy_push_state(X_DELIMITER); return *yytext;
+
 {IDENTIFIER}        yylval.s = strdup(yytext); return tIDENTIFIER;
-
-{INTEGER}           yylval.i = decimal(yytext); return tINTEGER;
 {OCTAL}             yylval.i = octal(yytext); return tOCTAL;
+{INTEGER}           yylval.i = decimal(yytext); return tINTEGER;
 {NUMBER}            yylval.d = real(yytext); return tNUMBER;
+{STRING}            yy_push_state(X_STRING); yylval.s = malloc(yyleng); *yylval.s = 0;
 
-\"			                yy_push_state(X_STRING); yylval.s = malloc(yyleng); *yylval.s = 0;
-<X_STRING>\"			    yy_pop_state(); return tSTRING;
-<X_STRING>"*n"		        strcat(yylval.s, "\n");
-<X_STRING>"*r"		        strcat(yylval.s, "\r");
-<X_STRING>"*t"		        strcat(yylval.s, "\t");
-<X_STRING>"*0"		        strcat(yylval.s, "\0");
-<X_STRING>"*("		        strcat(yylval.s, "{");
-<X_STRING>"*)"		        strcat(yylval.s, "}");
-<X_STRING>\*[*'"]           strcat(yylval.s, yytext+1);
-<X_STRING>\*.		        yyerror("invalid escape sequence in string");
-<X_STRING>.|\n              strcat(yylval.s, yytext);
+[-()<>+*/%;{},.~&|?\[\]!#]       return *yytext;
+[ \t\n\r]+		                ;
 
-[-()<>+*/%;{},.~&|?\[\]\'\"\\!]     return *yytext;
-
-[ \t\n\r]+		                    ;
-
-.                                   yyerror("Unknown character");
+.        yyerror("Unknown character");
 
 %%
 int yywrap() { return 1; }

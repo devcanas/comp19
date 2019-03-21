@@ -19,22 +19,10 @@ int yylex();
 %token<i> tINTEGER tOCTAL
 %token<d> tNUMBER
 %token<s> tSTRING tIDENTIFIER
-%token tPUBLIC tCONST tVOID tENTRY tIF tTHEN tELSE tDO
-%token tWHILE tFOR tIN tUPTO tDOWNTO tSTEP tBREAK tCONTINUE
-
-/* Expressions */
-
-%left tEQ tNE
-%left '<' '>' tLE tGE
-%left '*' '/' '%'
-%left '-' '+'
-%left '|' '&'
-
-%nonassoc '~'
-%nonassoc '(' ')' '[' ']'
-%nonassoc tINCR tDECR tDIY
-
-%right tASSIGN
+%token tPUBLIC tCONST tVOID tENTRY 
+%token tINTEGER_TYPE tSTRING_TYPE tNUMBER_TYPE tOCTAL_TYPE tBINARY_TYPE
+%token tIF tTHEN tELSE tDO tWHILE tFOR tIN tUPTO tDOWNTO tSTEP tBREAK tCONTINUE
+%token tEQ tNE tLE tGE tINCR tDECR tASSIGN
 
 %%
 file: ;
