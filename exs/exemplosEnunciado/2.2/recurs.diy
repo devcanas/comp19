@@ -1,0 +1,5 @@
+public integer factorial(integer num) {
+
+    if num = 1 then { factorial := 1 }  
+    else { factorial := num * factorial(num - 1) }
+}

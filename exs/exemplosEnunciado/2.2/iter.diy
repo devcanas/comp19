@@ -1,0 +1,10 @@
+public integer factorial(integer num) {
+    integer res := 1
+
+    do { 
+        res := res * num 
+        num--
+    } while num > 0
+
+    factorial := res
+};

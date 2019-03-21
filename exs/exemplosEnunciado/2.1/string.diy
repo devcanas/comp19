@@ -1,0 +1,28 @@
+public integer strlen(string s)
+public integer atoi(string s)
+
+public integer strcmp (string str1, string str2) {
+    strcmp := 0
+
+    if str1 <> str2 then {
+        strcmp := -1
+    }
+};
+
+public string strcpy (string destination, string src) {
+
+    destination := src
+    strcpy := destination
+};
+
+public string strchr (string str, integer int) {
+    strchr := 0
+    integer str_len := strlen(str)
+
+    for i in 0 upto (str_len - 1) do {
+        if atoi(str[i]) = integer then {
+            strchr := str[i]
+            break
+        }
+    }
+};

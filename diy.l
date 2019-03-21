@@ -13,6 +13,7 @@ IDENTIFIER [A-Za-z_][A-Za-z0-9_]*
 
 INTEGER [1-9][0-9]*
 OCTAL 0[0-9]*
+BINARY 0b[01]+
 NUMBER [0-9]*\.[0-9]+
 STRING \"
 
@@ -72,14 +73,16 @@ step            return tSTEP;
 break           return tBREAK;
 continue        return tCONTINUE;
 
-{IDENTIFIER}{IS_LAST_IN_LINE}       yy_push_state(X_DELIMITER); yylval.s = strdup(yytext); return tIDENTIFIER;
+{IDENTIFIER}{IS_LAST_IN_LINE}       yy_push_state(X_DELIMITER); yylval.s = strdup(yytext); return tIDENTIFIER; /* Handle line delimiter ';' */
 {OCTAL}{IS_LAST_IN_LINE}            yy_push_state(X_DELIMITER); yylval.i = octal(yytext); return tOCTAL;
+{BINARY}{IS_LAST_IN_LINE}           yy_push_state(X_DELIMITER); yylval.i = strtol (yytext + 2, NULL, 2); return tBINARY;
 {INTEGER}{IS_LAST_IN_LINE}          yy_push_state(X_DELIMITER); yylval.i = decimal(yytext); return tINTEGER;
 {NUMBER}{IS_LAST_IN_LINE}           yy_push_state(X_DELIMITER); yylval.d = real(yytext); return tNUMBER;
 [)!]{IS_LAST_IN_LINE}               yy_push_state(X_DELIMITER); return *yytext;
 
 {IDENTIFIER}        yylval.s = strdup(yytext); return tIDENTIFIER;
 {OCTAL}             yylval.i = octal(yytext); return tOCTAL;
+{BINARY}            yylval.i = strtol (yytext + 2, NULL, 2); return tBINARY;
 {INTEGER}           yylval.i = decimal(yytext); return tINTEGER;
 {NUMBER}            yylval.d = real(yytext); return tNUMBER;
 {STRING}            yy_push_state(X_STRING); yylval.s = malloc(yyleng); *yylval.s = 0;
