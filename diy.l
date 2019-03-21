@@ -7,24 +7,41 @@ int octal(char *s);
 double real(char *s);
 int yyerror(char *s);
 %}
-%x X_COMMENT X_STRING
+%x X_COMMENT X_STRING X_DELIMITER
+
+DELIMITER [-(<>+*/%;{},.~&|?\[\]\'\"\\]
+
+SPECIAL_DELIMITER [)!]
 
 IDENTIFIER [A-Za-z_][A-Za-z0-9_]*
 
-INTEGER [1-9][0-9]*                 yylval.i = decimal(yytext); return tINTEGER;
-OCTAL 0[0-9]*                     yylval.i = octal(yytext); return tOCTAL;
-NUMBER [0-9]*\.[0-9]+              yylval.d = real(yytext); return tNUMBER;
-
-NUMERIC {INTEGER}|{OCTAL}|{NUMBER}
+INTEGER [1-9][0-9]*
+OCTAL 0[0-9]*
+NUMBER [0-9]*\.[0-9]+
 
 %%
 
-==.*                ;                   /* Comments handling */
-=>				    yy_push_state(X_COMMENT);
+<X_DELIMITER>[ ]*                   ;
+<X_DELIMITER>\n                     yy_pop_state(); return ';';
+<X_DELIMITER>.                     yy_pop_state();
+
 <X_COMMENT>=<       yy_pop_state();
 <X_COMMENT>.|\n     ;
 
-:=              return tASSIGN;     /* Assignement operator */
+<X_STRING>\"			    yy_pop_state(); yy_push_state(X_DELIMITER); return tSTRING;
+<X_STRING>"*n"		        strcat(yylval.s, "\n");
+<X_STRING>"*r"		        strcat(yylval.s, "\r");
+<X_STRING>"*t"		        strcat(yylval.s, "\t");
+<X_STRING>"*0"		        strcat(yylval.s, "\0");
+<X_STRING>"*("		        strcat(yylval.s, "{");
+<X_STRING>"*)"		        strcat(yylval.s, "}");
+<X_STRING>\*[*'"]           strcat(yylval.s, yytext+1);
+<X_STRING>\*.		        yyerror("invalid escape sequence in string");
+<X_STRING>.|\n              strcat(yylval.s, yytext);
+
+==.*            ;
+=>			    yy_push_state(X_COMMENT);
+:=              return tASSIGN;
 
 =               return tEQ;         /* Comparison operators */
 "<>"            return tNE;
@@ -53,28 +70,18 @@ step            return tSTEP;
 break           return tBREAK;
 continue        return tCONTINUE;
 
-{IDENTIFIER}        yylval.s = strdup(yytext); return tIDENTIFIER;
+{IDENTIFIER}        yylval.s = strdup(yytext); yy_push_state(X_DELIMITER); return tIDENTIFIER;
 
-{INTEGER}           yylval.i = decimal(yytext); return tINTEGER;
-{OCTAL}             yylval.i = octal(yytext); return tOCTAL;
-{NUMBER}            yylval.d = real(yytext); return tNUMBER;
+{INTEGER}           yylval.i = decimal(yytext); yy_push_state(X_DELIMITER); return tINTEGER;
+{OCTAL}             yylval.i = octal(yytext); yy_push_state(X_DELIMITER); return tOCTAL;
+{NUMBER}            yylval.d = real(yytext); yy_push_state(X_DELIMITER);  return tNUMBER;
 
 \"			                yy_push_state(X_STRING); yylval.s = malloc(yyleng); *yylval.s = 0;
-<X_STRING>\"			    yy_pop_state(); return tSTRING;
-<X_STRING>"*n"		        strcat(yylval.s, "\n");
-<X_STRING>"*r"		        strcat(yylval.s, "\r");
-<X_STRING>"*t"		        strcat(yylval.s, "\t");
-<X_STRING>"*0"		        strcat(yylval.s, "\0");
-<X_STRING>"*("		        strcat(yylval.s, "{");
-<X_STRING>"*)"		        strcat(yylval.s, "}");
-<X_STRING>\*[*'"]           strcat(yylval.s, yytext+1);
-<X_STRING>\*.		        yyerror("invalid escape sequence in string");
-<X_STRING>.|\n              strcat(yylval.s, yytext);
 
-[-()<>+*/%;{},.~&|?\[\]\'\"\\!]     return *yytext;
+{SPECIAL_DELIMITER}     yy_push_state(X_DELIMITER); return *yytext;
+{DELIMITER}             return *yytext;
 
 [ \t\n\r]+		                    ;
-
 .                                   yyerror("Unknown character");
 
 %%

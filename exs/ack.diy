@@ -21,6 +21,7 @@ public integer entry (integer argc, string *argv, string *envp) {
   entry := 0
 };
 
+=>
 
 2.1 - Módulo de manipulação de cadeias de carateres
     O módulo será designado string.diy (e não String.diy, STRING.DIY, STRING.diy ou outra variante 
@@ -47,7 +48,7 @@ integer strcmp (string *str1, string *str2) {
 };
 
 
-integer strlen(char *s) {
+=> integer strlen(char *s) {
   integer cnt := 0
   do {
     if s[cnt] <> null) then {
@@ -59,3 +60,5 @@ integer strlen(char *s) {
 
   strlen := cnt
 }
+
+=<
