@@ -1,41 +1,33 @@
 %{
 #include <stdio.h>
 #include <stdlib.h>
-#include "y.tab.h"
-#ifndef YYERRCODE
-#define YYERRCODE 256
-#endif
-#define YYDEBUG 1
-extern int yylineno;
-int yylex(); 
+#include <string.h>
+extern int yylex();
+int yyerror(char *s);
 %}
-
 %union {
-    int i; 
-	double d;
-    char *s; 
-}
-
-%token<i> tINTEGER tOCTAL tBINARY
-%token<d> tNUMBER
-%token<s> tSTRING tIDENTIFIER
-%token tPUBLIC tCONST tVOID tENTRY 
-%token tINTEGER_TYPE tSTRING_TYPE tNUMBER_TYPE tOCTAL_TYPE tIF tTHEN
-%token tELSE tDO tWHILE tFOR tIN tUPTO tDOWNTO tSTEP tBREAK tCONTINUE
-%token tEQ tNE tLE tGE tINCR tDECR tASSIGN
-
+	int i;			/* integer value */
+	double r;		/* real value */
+	char *s;		/* symbol name or string literal */
+};
+%token <i> INT
+%token <r> REAL
+%token <s> ID STR
+%token DO WHILE IF THEN FOR IN UPTO DOWNTO STEP BREAK CONTINUE
+%token VOID INTEGER STRING NUMBER CONST PUBLIC INCR DECR
+%token ATR NE GE LE ELSE
 %%
-file: ;
+start:;
 %%
-int yyerror(char *s) { fprintf(stderr, "%d: %s\n", yylineno, s); return 0; }
-
+int yyerror(char *s) { printf("%s\n",s); return 1; }
+char *dupstr(const char*s) { return strdup(s); }
 int main(int argc, char *argv[]) {
-	extern YYSTYPE yylval;
-	int tk;
-	while ((tk = yylex())) 
-	    if (tk > YYERRCODE)
-		    printf("%d:\t%s\n", tk, yyname[tk]);
-		else
-			printf("%d:\t%c\n", tk, tk);
-	return 0;
+ extern YYSTYPE yylval;
+ int tk;
+ while ((tk = yylex())) 
+  if (tk > YYERRCODE)
+   printf("%d:\t%s\n", tk, yyname[tk]);
+  else
+   printf("%d:\t%c\n", tk, tk);
+ return 0;
 }
