@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include "node.h"
 #include "y.tab.h"
 static int eoi; /* end of instruction */
 static int ncom; /* comment nesting level */
@@ -20,35 +21,35 @@ FLT	[0-9]+\.[0-9]+([Ee][+-]?[0-9]+)?
 <COM>"=<"		ncom++;
 <COM>"=>"		if (--ncom == 0) BEGIN 0;
 
-">="			eoi = 0; return GE;
-"<="			eoi = 0; return LE;
-"<>"			eoi = 0; return NE;
-":="			eoi = 0; return ATR;
-"++"			eoi = 0; return INCR;
-"--"			eoi = 0; return DECR;
-"if"			eoi = 0; return IF;
-"then"			eoi = 0; return THEN;
-"else"			eoi = 0; return ELSE;
-"while"			eoi = 0; return WHILE;
-"do"			eoi = 0; return DO;
-"for"			eoi = 0; return FOR;
-"in"			eoi = 0; return IN;
-"upto"			eoi = 0; return UPTO;
-"downto"		eoi = 0; return DOWNTO;
-"step"			eoi = 0; return STEP;
-"void"			eoi = 0; return VOID;
-"integer"		eoi = 0; return INTEGER;
-"string"		eoi = 0; return STRING;
-"number"		eoi = 0; return NUMBER;
-"public"		eoi = 0; return PUBLIC;
-"const"			eoi = 0; return CONST;
-"break"			eoi = 0; return BREAK;
-"continue"		eoi = 0; return CONTINUE;
+">="			eoi = 0; return tGE;
+"<="			eoi = 0; return tLE;
+"<>"			eoi = 0; return tNE;
+":="			eoi = 0; return tATR;
+"++"			eoi = 0; return tINCR;
+"--"			eoi = 0; return tDECR;
+"if"			eoi = 0; return tIF;
+"then"			eoi = 0; return tTHEN;
+"else"			eoi = 0; return tELSE;
+"while"			eoi = 0; return tWHILE;
+"do"			eoi = 0; return tDO;
+"for"			eoi = 0; return tFOR;
+"in"			eoi = 0; return tIN;
+"upto"			eoi = 0; return tUPTO;
+"downto"		eoi = 0; return tDOWNTO;
+"step"			eoi = 0; return tSTEP;
+"void"			eoi = 0; return tVOID;
+"integer"		eoi = 0; return tINTEGER;
+"string"		eoi = 0; return tSTRING;
+"number"		eoi = 0; return tNUMBER;
+"public"		eoi = 0; return tPUBLIC;
+"const"			eoi = 0; return tCONST;
+"break"			eoi = 0; return tBREAK;
+"continue"		eoi = 0; return tCONTINUE;
 
-[A-Za-z][A-Za-z0-9_]*	eoi = 1; yylval.s = strdup(yytext); return ID;
+[A-Za-z][A-Za-z0-9_]*	eoi = 1; yylval.s = strdup(yytext); return tID;
 \"([^"\\]|\\(.|\n))*\"	eoi = 1; yylval.s = malloc(yyleng); *yylval.s = 0; in = 1; REJECT;
 \"			if (in) BEGIN CHR; else { yyerror("unterminated string"); return 0; }
-<CHR>\"			eoi = 1; BEGIN 0; return STR;
+<CHR>\"			eoi = 1; BEGIN 0; return tSTR;
 <CHR>\\\"		strcat(yylval.s, "\"");
 <CHR>\\n		strcat(yylval.s, "\n");
 <CHR>\\r		strcat(yylval.s, "\n");
@@ -56,11 +57,11 @@ FLT	[0-9]+\.[0-9]+([Ee][+-]?[0-9]+)?
 <CHR>\\[0-9a-fA-F][0-9a-fA-F]?	{ char s[2]; s[1] = 0; s[0] = strtol(yytext+1,0,16); strcat(yylval.s, s); }
 <CHR>\\.		yyerror("invalid escape sequence in string");
 <CHR>[^"]		strcat(yylval.s, yytext);
-0[0-9]+			eoi = 1; yylval.i = octal(yytext); return INT;
-[0-9]+			eoi = 1; errno = 0; yylval.i = strtol(yytext, 0, 10); if (errno == ERANGE) yyerror("overflow in decimal constant"); return INT;
-0b[01]+			eoi = 1; errno = 0; yylval.i = strtol(yytext+2, 0, 2); if (errno == ERANGE) yyerror("overflow in binary constant"); return INT;
-{FLT}			eoi = 1; yylval.r = strtod(yytext, 0); return REAL;
-[-<>+*/%=|&!;#{},\[\](]	eoi = 0; return *yytext;
+0[0-9]+			eoi = 1; yylval.i = octal(yytext); return tINT;
+[0-9]+			eoi = 1; errno = 0; yylval.i = strtol(yytext, 0, 10); if (errno == ERANGE) yyerror("overflow in decimal constant"); return tINT;
+0b[01]+			eoi = 1; errno = 0; yylval.i = strtol(yytext+2, 0, 2); if (errno == ERANGE) yyerror("overflow in binary constant"); return tINT;
+{FLT}			eoi = 1; yylval.r = strtod(yytext, 0); return tREAL;
+[-<>+~*/%=|&!;#{},\[\](]	eoi = 0; return *yytext;
 [)!]			eoi = 1; return *yytext;
 
 [ \t\r]+		; /* ignore whitespace */

@@ -1,5 +1,5 @@
 LANG=diy
-YFILE?=initial
+YFILE?=diy
 EXT=diy # file extension: .$(EXT)
 LIB=lib # compiler library directory
 UTIL=util # compiler library: lib$(LIB).a
