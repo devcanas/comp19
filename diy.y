@@ -6,7 +6,7 @@
 #include <string.h>
 #include "node.h"
 #include "tabid.h"
-
+extern int yyselect(Node*);
 extern int yylex();
 void yyerror(char *s);
 void declare(int pub, int cnst, Node *type, char *name, Node *value);
@@ -15,6 +15,8 @@ int checkargs(char *name, Node *args);
 int nostring(Node *arg1, Node *arg2);
 int intonly(Node *arg, int);
 int noassign(Node *arg1, Node *arg2);
+void func(int,char*,Node*);
+void variable(char*,Node*,Node*);
 static int ncicl;
 static char *fpar;
 %}
@@ -53,15 +55,15 @@ static char *fpar;
 %%
 file	:
 	| file error ';'
-	| file public tipo ID ';'	{ IDnew($3->value.i, $4, 0); declare($2, 0, $3, $4, 0); }
-	| file public CONST tipo ID ';'	{ IDnew($4->value.i+5, $5, 0); declare($2, 1, $4, $5, 0); }
-	| file public tipo ID init	{ IDnew($3->value.i, $4, 0); declare($2, 0, $3, $4, $5); }
-	| file public CONST tipo ID init	{ IDnew($4->value.i+5, $5, 0); declare($2, 1, $4, $5, $6); }
-	| file public tipo ID { enter($2, $3->value.i, $4); } finit { function($2, $3, $4, $6); }
-	| file public VOID ID { enter($2, 4, $4); } finit { function($2, intNode(VOID, 4), $4, $6); }
+	| file public tipo ID ';'	{ IDnew($3->value.i, $4, 0); declare($2, 0, $3, $4, 0); variable($4, strNode(ID, $4), nilNode(NIL)); }
+	| file public CONST tipo ID ';'	{ IDnew($4->value.i+5, $5, 0); declare($2, 1, $4, $5, 0); variable($5, strNode(ID, $5), nilNode(NIL)); }
+	| file public tipo ID init	{ IDnew($3->value.i, $4, 0); declare($2, 0, $3, $4, $5); variable($4, strNode(ID, $4), $5); }
+	| file public CONST tipo ID init	{ IDnew($4->value.i+5, $5, 0); declare($2, 1, $4, $5, $6); variable($5, strNode(ID, $5), $6); }
+	| file public tipo ID { enter($2, $3->value.i, $4); } finit { function($2, $3, $4, $6); func($2, $4, $6); }
+	| file public VOID ID { enter($2, 4, $4); } finit { function($2, intNode(VOID, 4), $4, $6); func($2, $4, $6); }
 	;
 
-public	:               { $$ = 0; }
+public	:               { $$ = nilNode(NIL); }
 	| PUBLIC        { $$ = 1; }
 	;
 
@@ -84,21 +86,21 @@ init	: ATR ID ';'		{ $$ = strNode(ID, $2); $$->info = IDfind($2, 0) + 10; }
         ;
 
 finit   : '(' params ')' blocop { $$ = binNode('(', $4, $2); }
-	| '(' ')' blocop        { $$ = binNode('(', $3, 0); }
+	| '(' ')' blocop        { $$ = binNode('(', $3, nilNode(NIL)); }
 	;
 
-blocop  : ';'   { $$ = 0; }
+blocop  : ';'   { $$ = nilNode(NIL); }
         | bloco ';'   { $$ = $1; }
         ;
 
-params	: param
+params	: param						{ $$ = $1; }
 	| params ',' param      { $$ = binNode(',', $1, $3); }
 	;
 
 bloco	: '{' { IDpush(); } decls list end '}'    { $$ = binNode('{', $5 ? binNode(';', $4, $5) : $4, $3); IDpop(); }
 	;
 
-decls	:                       { $$ = 0; }
+decls	:                       { $$ = nilNode(NIL); }
 	| decls param ';'       { $$ = binNode(';', $1, $2); }
 	;
 
@@ -112,7 +114,7 @@ stmt	: base
 	| brk
 	;
 
-base	: ';'                   { $$ = nilNode(VOID); }
+base	: ';'                   { $$ = nilNode(NIL); }
 	| DO { ncicl++; } stmt WHILE expr ';' { $$ = binNode(WHILE, binNode(DO, nilNode(START), $3), $5); ncicl--; }
 	| FOR lv IN expr UPTO expr step DO { ncicl++; } stmt       { $$ = binNode(';', binNode(ATR, $4, $2), binNode(FOR, binNode(IN, nilNode(START), binNode(LE, uniNode(PTR, $2), $6)), binNode(';', $10, binNode(ATR, binNode('+', uniNode(PTR, $2), $7), $2)))); ncicl--; }
 	| FOR lv IN expr DOWNTO expr step DO { ncicl++; } stmt       { $$ = binNode(';', binNode(ATR, $4, $2), binNode(FOR, binNode(IN, nilNode(START), binNode(GE, uniNode(PTR, $2), $6)), binNode(';', $10, binNode(ATR, binNode('-', uniNode(PTR, $2), $7), $2)))); ncicl--; }
@@ -124,7 +126,7 @@ base	: ';'                   { $$ = nilNode(VOID); }
 	| error ';'       { $$ = nilNode(NIL); }
 	;
 
-end	:		{ $$ = 0; }
+end	:		{ $$ = nilNode(NIL); }
 	| brk;
 
 brk : BREAK intp ';'        { $$ = intNode(BREAK, $2); if ($2 <= 0 || $2 > ncicl) yyerror("invalid break argument"); }
@@ -195,7 +197,7 @@ expr	: lv		{ $$ = uniNode(PTR, $1); $$->info = $1->info; }
 	| '(' expr ')' { $$ = $2; $$->info = $2->info; }
 	| ID '(' args ')' { $$ = binNode(CALL, strNode(ID, $1), $3);
                             $$->info = checkargs($1, $3); }
-	| ID '(' ')'    { $$ = binNode(CALL, strNode(ID, $1), nilNode(VOID));
+	| ID '(' ')'    { $$ = binNode(CALL, strNode(ID, $1), nilNode(NIL));
                           $$->info = checkargs($1, 0); }
 	;
 

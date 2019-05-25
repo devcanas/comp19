@@ -6,13 +6,170 @@
 #include "node.h"
 #include "tabid.h"
 #include "postfix.h"
+extern FILE *outfp;
+char *dupstr(const char *s);
+
+static long brklbl[20], brkcnt; /* break labels */
+/* label _L0 is a break without a while/switch) */
+
+static char *extrns[100]; /* emit externs at the end only */
+static int extcnt;
+
+int lbl;
+char *mklbl(int n) {
+  static char buf[20];
+  sprintf(buf, "_i%d", n);
+  return strcpy(malloc(strlen(buf)+1),buf);
+}
+
+static void outstr(char *s) {
+  while (*s) fprintf(outfp, pfCHAR, (unsigned char)*s++);
+  fprintf(outfp, pfCHAR, 0);
+}
+static char *mkfunc(char *s) {
+  static char buf[80];
+  strcpy(buf, "_");
+  strcat(buf, s);
+  return buf;
+}
+
 %}
-%term END=';'
+%term END=';' PROG='(' PARAM_DIV=',' BLOCK='{' ADD='+' SUB='-' MUL='*' DIV='/'
+%term MOD='%' LT='<' GT='>' EQ='=' AND='&' OR='|' FACT='!' ARR='[' MALLOC='#'
 %include "y.tab.h"
 %%
-stmt:	END	1	{	}
+
+prog:	PROG(blocop, params)
+
+params: NIL                     
+params: PARAM_DIV(params, param)
+params: param
+
+param: PARAM(tipo, ID)
+
+tipo: INTEGER
+tipo: STRING
+tipo: NUMBER
+
+blocop: NIL              
+blocop: bloco
+
+bloco: BLOCK(list, decls)
+bloco: BLOCK(list, end)
+
+end: NIL
+end: brk
+
+intp: INT {  fprintf(outfp, pfIMM, p->value.i); }
+intp: NIL
+
+list: base
+list: END(list, base)
+
+base: NIL
+base: IF(cond, stmt)        1 { fprintf(outfp, pfLABEL, mklbl(LEFT_CHILD(p)->place)); }
+base: WHILE(DO(START, stmt), expr) 1 {  }
+base: END(ATR(expr, lv), FOR(IN(START, LE(PTR(lv), expr)), END(stmt, ATR(ADD(PTR(lv), step), lv)))) 1 {  }
+base: END(ATR(expr, lv), FOR(IN(START, GE(PTR(lv), expr)), END(stmt, ATR(ADD(PTR(lv), step), lv)))) 1 {  }
+base: IF(expr, stmt) 1 {  }
+base: ELSE(IF(expr, stmt), stmt) 1 {  }
+base: expr
+base: bloco
+base: MALLOC(expr, lv)
+
+step: INT 1 {  fprintf(outfp, pfIMM, 1); }
+step: expr
+
+cond: expr                  1 { p->place = ++lbl; fprintf(outfp, pfJZ, mklbl(p->place)); }
+
+decls: NIL
+decls: END(decls, param)
+
+expr: CALL(ID, args)        1 { fprintf(outfp, pfCALL pfTRASH pfPUSH, mkfunc(LEFT_CHILD(p)->value.s), (int)(pfWORD*(RIGHT_CHILD(p)->place))); }
+args: NIL                   
+args: PARAM_DIV(args, arg) 
+arg: expr
+
+lv: ID    1 { fprintf(outfp, pfLOAD pfLOCAL, p->value.i * (pfWORD/4)); }
+lv: ARR(ID, expr)   1 { fprintf(outfp, pfLOCAL, p->value.i * (pfWORD/4));  }
+
+stmt: base
+stmt: brk
+
+brk: BREAK(intp)
+brk: CONTINUE(intp)
+
+expr: INT 1 { fprintf(outfp, pfIMM, p->value.i); }
+expr: REAL 1 { fprintf(outfp, pfDOUBLE, p->value.r); }
+expr: STR 1 { lbl++; fprintf(outfp, pfRODATA pfALIGN pfLABEL, mklbl(lbl)); outstr(p->value.s); fprintf(outfp, pfTEXT pfADDR, mklbl(lbl)); }
+
+expr: lv
+expr: PTR(lv)
+expr: ATR(expr, ID) 1 { fprintf(outfp, pfSTORE); }
+expr: NOT(expr) 1 { fprintf(outfp, pfNOT); }
+expr: REF(expr) 1 { fprintf(outfp, pfNOT); }
+expr: FACT(expr) 1 { fprintf(outfp, pfNOT); }
+expr: INCR(expr) 1 { fprintf(outfp, pfINCR, LEFT_CHILD(p)->value.i); }
+expr: DECR(expr) 1 { fprintf(outfp, pfDECR, LEFT_CHILD(p)->value.i); }
+expr: POSINC(expr) 1 { fprintf(outfp, pfINCR, RIGHT_CHILD(p)->value.i); }
+expr: POSDEC(expr) 1 { fprintf(outfp, pfDECR, RIGHT_CHILD(p)->value.i); }
+expr: ADD(expr, expr) 1 { fprintf(outfp, pfADD); }
+expr: SUB(expr, expr) 1 { fprintf(outfp, pfSUB); }
+expr: MUL(expr, expr) 1 { fprintf(outfp, pfMUL); }
+expr: DIV(expr, expr) 1 { fprintf(outfp, pfDIV); }
+expr: MOD(expr) 1 { fprintf(outfp, pfMOD); }
+expr: LT(expr, expr) 1 { fprintf(outfp, pfLT); }
+expr: GT(expr, expr)  1 { fprintf(outfp, pfGT); }
+expr: GE(expr, expr) 1 { fprintf(outfp, pfGE); }
+expr: LE(expr, expr) 1 { fprintf(outfp, pfLE); }
+expr: NE(expr, expr) 1 { fprintf(outfp, pfNE); }
+expr: EQ(expr, expr) 1 { fprintf(outfp, pfEQ); }
+expr: AND(expr, expr) 1 { fprintf(outfp, pfAND); }
+expr: OR(expr, expr) 1 { fprintf(outfp, pfOR); }
+
 %%
 #include "y.tab.h"
 extern void yyerror(const char*);
 extern char **yynames;
 extern int trace;
+
+void func(int enter, char* name, Node* stmt) {
+  int i;
+  extern int errors, trace;
+  extern char **yynames;
+  if (errors) return;
+  if (trace) printNode(stmt, 0, yynames);
+  fflush(stdout);
+  fprintf(outfp, pfTEXT pfALIGN pfGLOBL pfLABEL pfENTER, mkfunc(name), pfFUNC, mkfunc(name), enter * (pfWORD/4));
+  yyselect(stmt);
+  fprintf(outfp, pfLEAVE pfRET); /* just in case ... */
+  freeNode(stmt);
+  for (i = 0; i < extcnt; i++)
+    if (extrns[i] && strcmp(extrns[i], mkfunc(name)) == 0) extrns[i] = 0;
+}
+
+void variable(char *name, Node *vc, Node *init)
+{
+  int i = 0, siz = 1;
+  fprintf(outfp, pfGLOBL pfDATA pfALIGN pfLABEL, name, pfOBJ, name);
+  if (vc->type == nodeInt) siz = vc->value.i;
+  if (vc->attrib == LOCAL) {
+    lbl++;
+    fprintf(outfp, pfID pfLABEL, mklbl(lbl), mklbl(lbl));
+  }
+  if (init) {
+    for (i = 0; i < init->value.sub.num; i++)
+      switch (init->CHILD(i)->attrib) {
+        case INT: fprintf(outfp, pfWORD == 4 ? pfINTEGER : pfLONG, init->CHILD(i)->value.i); break;
+	case ID: fprintf(outfp, pfID, init->CHILD(i)->value.s); break;
+	case STRING: { char *l = mklbl(++lbl);
+			fprintf(outfp, pfRODATA pfALIGN pfLABEL, l);
+			outstr(init->CHILD(i)->value.s);
+			fprintf(outfp, pfDATA pfID, l); break; }
+      }
+    if (i < siz)  fprintf(outfp, pfBYTE, pfWORD * (siz - i));
+  }
+  else fprintf(outfp, pfBYTE, pfWORD * siz);
+  for (i = 0; i < extcnt; i++)
+    if (extrns[i] && strcmp(extrns[i], name) == 0) extrns[i] = 0;
+}
