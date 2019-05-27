@@ -107,7 +107,7 @@ programa.
 <TR><TD>pfCOMMON 	<TD>   <TD>len<TD><TD>Declara que o nome &eacute; definido como <I>comum</I> a outros m&oacute;dulos. [*10*]
 <TR><TD>pfGLOBL 	<TD>tipo<TD>nome<TD><TD>Declara global o nome (a declara&ccedil;&atilde;o deve preceder a sua defini&ccedil;&atilde;o), o 2&ordm; argumento indica o tipo de s&iacute;mbolo: pfNONE - desconhecido, pfFUNC - fun&ccedil;&atilde;o, pfOBJ - dados
 <!--<TR><TD>pfFUNC	 	<TD>num<TD>    <TD><TD>Declara o n&uacute;mero de argumentos da rotina seguinte. Deve ser seguido do LABEL que inicia a rotina. -->
-<TR><TD>pfENDF	 	<TD>   <TD>nome<TD><TD>Declara o fim da rotina do nome indicado. É utilizado pelos assemblers para determinar a dimensão da rotina, em especial quando geram codigo PIC.
+<TR><TD>pfENDF	 	<TD>   <TD>nome<TD><TD>Declara o fim da rotina do nome indicado. ï¿½ utilizado pelos assemblers para determinar a dimensï¿½o da rotina, em especial quando geram codigo PIC.
 <TR><TD>pfARGS	 	<TD>num<TD>    <TD><TD>Declara o n&uacute;mero de argumentos da chamada (ver pfCALL) seguinte.
 <TR><TD>pfSTR 	<TD>lbl<TD>str <TD><TD>Declara uma cadeia de caracteres 'str' est&aacute;tica (n&atilde;o pode conter caracteres especiais) [*1*]
 <TR><TD>pfCHAR 	<TD>   <TD>char<TD><TD>Declara um car&aacute;cter est&aacute;tico (usar <I>unsigned char</I> para imprimir caracteres n&atilde;o ASCII)
@@ -220,12 +220,12 @@ precis&atilde;o dupla)
 <UL>
 <LI>
 [*0*] Na coluna <I>efeito</I> representa-se apenas o que acontece aos valores
-no topo da pilha, não aos restantes valores do programa.
-A notação <B>#len</B> representa tantos
+no topo da pilha, nï¿½o aos restantes valores do programa.
+A notaï¿½ï¿½o <B>#len</B> representa tantos
 bytes na pilha quanto o valor de <B>len</B>, por exemplo,
-<B>a #8 b : a b</B> antes da operação <B>a</B> estava separado de <B>b</B>
-por <B>8</B> bytes (com <B>b</B> no topo da pilha) e depois da operação essa
-separação desaparece (<B>b</B> continua no topo da pilha).
+<B>a #8 b : a b</B> antes da operaï¿½ï¿½o <B>a</B> estava separado de <B>b</B>
+por <B>8</B> bytes (com <B>b</B> no topo da pilha) e depois da operaï¿½ï¿½o essa
+separaï¿½ï¿½o desaparece (<B>b</B> continua no topo da pilha).
 <LI>
 [*1*] Notar que os valores literais, por exemplo inteiros, podem ser utilizados
 na sua forma est&aacute;tica ocupando espa&ccedil;o na &aacute;rea de dados

@@ -813,40 +813,40 @@ static char *pfNAMES[] = { 0, "comm", "nop", "imm", "add", "sub", "mul", "div",
 #endif
 
 #ifndef pfARG1
-#define pfARG1 ""
+#define pfARG1 " "
 #endif
 #ifndef pfARG2
-#define pfARG2 ""
+#define pfARG2 " "
 #endif
 #ifndef pfARG3
-#define pfARG3 ""
+#define pfARG3 " "
 #endif
 #ifndef pfARG4
-#define pfARG4 ""
+#define pfARG4 " "
 #endif
 #ifndef pfARG5
-#define pfARG5 ""
+#define pfARG5 " "
 #endif
 #ifndef pfARG6
-#define pfARG6 ""
+#define pfARG6 " "
 #endif
 #ifndef pfARG1D
-#define pfARG1D ""
+#define pfARG1D " "
 #endif
 #ifndef pfARG2D
-#define pfARG2D ""
+#define pfARG2D " "
 #endif
 #ifndef pfARG3D
-#define pfARG3D ""
+#define pfARG3D " "
 #endif
 #ifndef pfARG4D
-#define pfARG4D ""
+#define pfARG4D " "
 #endif
 #ifndef pfARG5D
-#define pfARG5D ""
+#define pfARG5D " "
 #endif
 #ifndef pfARG6D
-#define pfARG6D ""
+#define pfARG6D " "
 #endif
 
 #ifndef pfWORD

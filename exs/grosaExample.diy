@@ -1,0 +1,15 @@
+public void printi(integer i)
+public void println()
+public integer atoi(string s)
+
+public integer grosa(integer n)
+integer n := 0
+
+public integer entry (integer argc, string *argv, string *envp) {
+  if argc > 1 then
+    n := atoi(argv[1])
+
+  printd(grosa(n)); println();
+
+  entry := 0
+};

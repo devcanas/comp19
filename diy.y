@@ -6,7 +6,7 @@
 #include <string.h>
 #include "node.h"
 #include "tabid.h"
-extern int yyselect(Node*);
+
 extern int yylex();
 void yyerror(char *s);
 void declare(int pub, int cnst, Node *type, char *name, Node *value);
@@ -15,9 +15,7 @@ int checkargs(char *name, Node *args);
 int nostring(Node *arg1, Node *arg2);
 int intonly(Node *arg, int);
 int noassign(Node *arg1, Node *arg2);
-void func(int,char*,Node*);
-void variable(char*,Node*,Node*);
-static int ncicl;
+static int ncicl, pos;
 static char *fpar;
 %}
 
@@ -32,7 +30,7 @@ static char *fpar;
 %token <r> REAL
 %token <s> ID STR
 %token DO WHILE IF THEN FOR IN UPTO DOWNTO STEP BREAK CONTINUE
-%token VOID INTEGER STRING NUMBER CONST PUBLIC INCR DECR
+%token VOID INTEGER STRING NUMBER CONST PUBLIC INCR DECR 
 %nonassoc IFX
 %nonassoc ELSE
 
@@ -40,6 +38,7 @@ static char *fpar;
 %left '|'
 %left '&'
 %nonassoc '~'
+%right ORBB
 %left '=' NE
 %left GE LE '>' '<'
 %left '+' '-'
@@ -55,15 +54,15 @@ static char *fpar;
 %%
 file	:
 	| file error ';'
-	| file public tipo ID ';'	{ IDnew($3->value.i, $4, 0); declare($2, 0, $3, $4, 0); variable($4, strNode(ID, $4), nilNode(NIL)); }
-	| file public CONST tipo ID ';'	{ IDnew($4->value.i+5, $5, 0); declare($2, 1, $4, $5, 0); variable($5, strNode(ID, $5), nilNode(NIL)); }
-	| file public tipo ID init	{ IDnew($3->value.i, $4, 0); declare($2, 0, $3, $4, $5); variable($4, strNode(ID, $4), $5); }
-	| file public CONST tipo ID init	{ IDnew($4->value.i+5, $5, 0); declare($2, 1, $4, $5, $6); variable($5, strNode(ID, $5), $6); }
-	| file public tipo ID { enter($2, $3->value.i, $4); } finit { function($2, $3, $4, $6); func($2, $4, $6); }
-	| file public VOID ID { enter($2, 4, $4); } finit { function($2, intNode(VOID, 4), $4, $6); func($2, $4, $6); }
+	| file public tipo ID ';'	{ IDnew($3->value.i, $4, 0); declare($2, 0, $3, $4, 0); }
+	| file public CONST tipo ID ';'	{ IDnew($4->value.i+5, $5, 0); declare($2, 1, $4, $5, 0); }
+	| file public tipo ID init	{ IDnew($3->value.i, $4, 0); declare($2, 0, $3, $4, $5); }
+	| file public CONST tipo ID init	{ IDnew($4->value.i+5, $5, 0); declare($2, 1, $4, $5, $6); }
+	| file public tipo ID { enter($2, $3->value.i, $4); pos = 8; } finit { function($2, $3, $4, $6); }
+	| file public VOID ID { enter($2, 4, $4); pos = 8; } finit { function($2, intNode(VOID, 4), $4, $6); }
 	;
 
-public	:               { $$ = nilNode(NIL); }
+public	:               { $$ = 0; }
 	| PUBLIC        { $$ = 1; }
 	;
 
@@ -86,26 +85,28 @@ init	: ATR ID ';'		{ $$ = strNode(ID, $2); $$->info = IDfind($2, 0) + 10; }
         ;
 
 finit   : '(' params ')' blocop { $$ = binNode('(', $4, $2); }
-	| '(' ')' blocop        { $$ = binNode('(', $3, nilNode(NIL)); }
+	| '(' ')' blocop        { $$ = binNode('(', $3, 0); }
 	;
 
-blocop  : ';'   { $$ = nilNode(NIL); }
-        | bloco ';'   { $$ = $1; }
+blocop  : ';'   { $$ = 0; }
+        | { pos = 0; } bloco ';'   { $$ = $2; }
         ;
 
-params	: param						{ $$ = $1; }
+params	: param
 	| params ',' param      { $$ = binNode(',', $1, $3); }
 	;
 
 bloco	: '{' { IDpush(); } decls list end '}'    { $$ = binNode('{', $5 ? binNode(';', $4, $5) : $4, $3); IDpop(); }
 	;
 
-decls	:                       { $$ = nilNode(NIL); }
+decls	:                       { $$ = 0; }
 	| decls param ';'       { $$ = binNode(';', $1, $2); }
 	;
 
 param	: tipo ID               { $$ = binNode(PARAM, $1, strNode(ID, $2));
-                                  IDnew($1->value.i, $2, 0);
+				  if (pos <= 0) pos -= 4;
+                                  IDnew($1->value.i, $2, pos);
+				  if (pos >= 8) pos += 4;
                                   if (IDlevel() == 1) fpar[++fpar[0]] = $1->value.i;
                                 }
 	;
@@ -114,12 +115,13 @@ stmt	: base
 	| brk
 	;
 
-base	: ';'                   { $$ = nilNode(NIL); }
+base	: ';'                   { $$ = nilNode(VOID); }
 	| DO { ncicl++; } stmt WHILE expr ';' { $$ = binNode(WHILE, binNode(DO, nilNode(START), $3), $5); ncicl--; }
 	| FOR lv IN expr UPTO expr step DO { ncicl++; } stmt       { $$ = binNode(';', binNode(ATR, $4, $2), binNode(FOR, binNode(IN, nilNode(START), binNode(LE, uniNode(PTR, $2), $6)), binNode(';', $10, binNode(ATR, binNode('+', uniNode(PTR, $2), $7), $2)))); ncicl--; }
 	| FOR lv IN expr DOWNTO expr step DO { ncicl++; } stmt       { $$ = binNode(';', binNode(ATR, $4, $2), binNode(FOR, binNode(IN, nilNode(START), binNode(GE, uniNode(PTR, $2), $6)), binNode(';', $10, binNode(ATR, binNode('-', uniNode(PTR, $2), $7), $2)))); ncicl--; }
 	| IF expr THEN stmt %prec IFX    { $$ = binNode(IF, $2, $4); }
 	| IF expr THEN stmt ELSE stmt    { $$ = binNode(ELSE, binNode(IF, $2, $4), $6); }
+	| expr '?' base ':' base 				{ $$ = binNode(':', binNode('?', $1, $3), $5); }
 	| expr ';'              { $$ = $1; }
 	| bloco                 { $$ = $1; }
 	| lv '#' expr ';'       { $$ = binNode('#', $3, $1); }
@@ -194,10 +196,11 @@ expr	: lv		{ $$ = uniNode(PTR, $1); $$->info = $1->info; }
 	| expr '=' expr { $$ = binNode('=', $1, $3); $$->info = 1; }
 	| expr '&' expr { $$ = binNode('&', $1, $3); $$->info = intonly($1, 0); intonly($3, 0); }
 	| expr '|' expr { $$ = binNode('|', $1, $3); $$->info = intonly($1, 0); intonly($3, 0); }
+	| expr ORBB expr { $$ = binNode(ORBB, $1, $3); $$->info = intonly($1, 0); intonly($3, 0); }
 	| '(' expr ')' { $$ = $2; $$->info = $2->info; }
 	| ID '(' args ')' { $$ = binNode(CALL, strNode(ID, $1), $3);
                             $$->info = checkargs($1, $3); }
-	| ID '(' ')'    { $$ = binNode(CALL, strNode(ID, $1), nilNode(NIL));
+	| ID '(' ')'    { $$ = binNode(CALL, strNode(ID, $1), nilNode(VOID));
                           $$->info = checkargs($1, 0); }
 	;
 
@@ -228,7 +231,7 @@ void enter(int pub, int typ, char *name) {
 	if (IDfind(name, (long*)IDtest) < 20)
 		IDnew(typ+20, name, (long)fpar);
 	IDpush();
-	if (typ != 4) IDnew(typ, name, 0);
+	if (typ != 4) IDnew(typ, name, -4);
 }
 
 int checkargs(char *name, Node *args) {
@@ -300,6 +303,7 @@ int noassign(Node *arg1, Node *arg2) {
 
 void function(int pub, Node *type, char *name, Node *body)
 {
+	extern void dofunc(int pub, Node *type, char *name, Node *body);
 	Node *bloco = LEFT_CHILD(body);
 	IDpop();
 	if (bloco != 0) { /* not a forward declaration */
@@ -308,4 +312,5 @@ void function(int pub, Node *type, char *name, Node *body)
 		if (fwd > 40) yyerror("duplicate function");
 		else IDreplace(fwd+40, name, par);
 	}
+	dofunc(pub, type, name, body);
 }
